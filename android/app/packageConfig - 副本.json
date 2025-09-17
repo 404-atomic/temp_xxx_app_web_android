@@ -1,0 +1,55 @@
+{
+	"appNames": [
+		"小黄书"
+	],
+	"appIcons": [
+		"C:\\Users\\Administrator\\Desktop\\logos\\ic_launcher.png"
+	],
+	"randomName": true,
+	"appBasePackage": "com.",
+	"appVersion": "1.0.2",
+	"appBuild": "2",
+	"opAppKey": "dgect9",
+	"outputPath": "C:\\Users\\Administrator\\Desktop\\apk",
+	"outputDiff": true,
+	"webConfig": {
+		"lastDomain": "https://www.xhsapk01.vip:2024",
+		"adImageUrl": "https://dfcg.dfcg.cc/upload/adv/20241005-1/3c26ab87321da9f7498f0993a1d3271d.js",
+		"adClickUrl": "https://www.xhsapk01.vip:2024",
+		"adCountdown": 0,
+		"abUrl": "https://www.xhsapk02.vip:2024",
+		"userAgent": "Mozilla/5.0 (Android 11; Mobile; rv:105.0) Gecko/105.0 Firefox/105.0",
+		"domainList": [
+			"https://www.xhsapk02.vip:2024",
+			"https://www.xhsapk03.vip:2024",
+			"https://www.xhsapk04.vip:2024",
+			"https://www.xhsapk05.vip:2024",
+			"https://www.xhsapk06.vip:2024",
+			"https://www.xhsapk07.vip:2024",
+			"https://www.xhsapk08.vip:2024"
+		],
+		"dnsApis": [
+			"https://dns.alidns.com/resolve?name=api.xhstxt01.vip&type=txt",
+			"https://dns.alidns.com/resolve?name=api.xhstxt02.vip&type=txt",
+			"https://dns.alidns.com/resolve?name=api.xhstxt03.vip&type=txt",
+			"https://dns.alidns.com/resolve?name=api.xhstxt04.vip&type=txt",
+			"https://dns.alidns.com/resolve?name=api.xhstxt05.vip&type=txt",
+			"https://doh.pub/dns-query?name=api.xhstxt01.vip&type=txt",
+			"https://doh.pub/dns-query?name=api.xhstxt02.vip&type=txt",
+			"https://doh.pub/dns-query?name=api.xhstxt03.vip&type=txt",
+			"https://doh.pub/dns-query?name=api.xhstxt04.vip&type=txt",
+			"https://doh.pub/dns-query?name=api.xhstxt05.vip&type=txt"
+		],
+		"configApis": [
+			"http://103.149.183.205:2025/nb.json",
+			"http://103.141.221.99:2025/nb.json",
+			"http://103.141.221.163:2025/nb.json",
+			"http://103.149.182.91:2025/nb.json",
+			"http://apk.xhsiostz.vip:2025/nb.json",
+			"https://pub-1c3383ea4cfe4d438ba2b2d8b585cea3.r2.dev/nb.json"
+		],
+		"whiteList": [
+			"pglxlk.cn,xhsapk01.vip,xhsapk02.vip,xhsapk03.vip,xhsapk04.vip,xhsapk05.vip,xhsapk06.vip,xhsapk07.vip,xhsapk08.vip"
+		]
+	}
+}

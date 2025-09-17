@@ -1,0 +1,366 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+
+rootProject.ext.configAppId = ""
+rootProject.ext.configAppVersion = "1.0.0"
+rootProject.ext.configAppBuild = "1"
+rootProject.ext.configOutputPath = "./apk/release"
+rootProject.ext.configKeyPath = "./keys/app.jks"
+rootProject.ext.configAlias = "app"
+rootProject.ext.configStorepass = "122333"
+rootProject.ext.configKeypass = "122333"
+
+rootProject.ext.autoBuild = new GradleUtils()
+rootProject.ext.packageConfig = new PackageConfig()
+rootProject.ext.finalPath = ""
+rootProject.ext.opAppKey = ""
+
+
+class GradleUtils {
+
+    void preInitTask(Project project) {
+        project.rootProject.ext.packageConfig = readPackageConfig(project, absolutePath(project, "app/packageConfig.json"))
+        project.rootProject.ext.opAppKey = project.rootProject.ext.packageConfig.opAppKey
+        def packageConfig = project.rootProject.ext.packageConfig
+        //打印读取的所有配置
+        printfOjb("read config:" + new JsonOutput().toJson(packageConfig))
+        def appId = readLocalAppId(project)
+        if (appId == null || appId == "") {
+            appId = genarateRandomAppId(packageConfig.appBasePackage)
+        }
+        printfOjb("appId:" + appId)
+        writeLocalAppId(project, appId)
+        def jksFile = absolutePath(project, "./app/keys/" + appId + ".jks")
+        def alias = appId
+        def storepass = appId
+        def keypass = appId
+        def keyPath = createJksFile(project, jksFile, alias, storepass, keypass)
+        printfOjb("jks path:" + keyPath)
+
+        project.rootProject.ext.configAppId = readLocalAppId(project)
+        project.rootProject.ext.configAppVersion = packageConfig.appVersion
+        project.rootProject.ext.configAppBuild = packageConfig.appBuild
+        project.rootProject.ext.configOutputPath = absolutePath(project, packageConfig.outputPath)
+        project.rootProject.ext.configKeyPath = keyPath
+        project.rootProject.ext.configAlias = alias
+        project.rootProject.ext.configStorepass = storepass
+        project.rootProject.ext.configKeypass = keypass
+    }
+
+
+    static void startAssembleApk(Project project) {
+
+        project.rootProject.ext.configAppId = readLocalAppId(project)
+        def packageConfig = project.rootProject.ext.packageConfig
+
+        writeAppConfig(project, absolutePath(project, "../assets/domain_config.json"), packageConfig.webConfig)
+        writeAppConfig(project, absolutePath(project, "../android/app/src/main/assets/domain_config.json"), packageConfig.webConfig)
+        //打印读取的WebConfig配置
+        printfOjb("save WebConfig:" + new JsonOutput().toJson(packageConfig.webConfig))
+
+        def appIcon = packageConfig.appIcons[0]
+
+        def appName = packageConfig.appNames[0]
+
+        if (packageConfig.randomName) {
+            //随机选择一个appName
+            appIcon = packageConfig.appIcons[new Random().nextInt(packageConfig.appIcons.size())]
+            appName = packageConfig.appNames[new Random().nextInt(packageConfig.appNames.size())]
+        }
+        //appName utf8
+        appName = new String(appName.getBytes("UTF-8"), "UTF-8")
+
+        printfOjb("appName:" + appName + " appIcon:" + appIcon)
+
+        replaceAppLauncher(absolutePath(project, "app/src/main/res"), absolutePath(project, appIcon))
+
+        replaceAppName(absolutePath(project, "app/src/main/res"), appName)
+
+        replaceLocalProperties(absolutePath(project, "./local.properties"), packageConfig.appVersion, packageConfig.appBuild)
+
+
+        def cmd = absolutePath(project, "./gradlew assembleRelease")
+        printfOjb("start assemble apk:" + cmd)
+        def stdout = new ByteArrayOutputStream()
+        def stderr = new ByteArrayOutputStream()
+
+        try {
+            if (isMac()) {
+                def result = project.exec {
+                    commandLine 'sh', '-c', cmd
+                    standardOutput = stdout
+                    errorOutput = stderr
+                    ignoreExitValue = true
+                }
+                println("Command failed with exit code: ${result.exitValue}")
+            } else {
+                def result = project.exec {
+                    commandLine 'cmd', '/c', cmd
+                    standardOutput = stdout
+                    errorOutput = stderr
+                    ignoreExitValue = true
+                }
+                println("Command failed with exit code: ${result.exitValue}")
+            }
+            println("Standard Output: ${stdout.toString()}")
+            println("Error Output: ${stderr.toString()}")
+
+        } catch (Error e) {
+            e.printStackTrace()
+        }
+        copyFinalApk(project)
+        project.rootProject.ext.configAppId = ""
+        writeLocalAppId(project, "")
+    }
+
+    static void copyFinalApk(Project project) {
+        def finalApkPath = "../build/app/outputs/apk/release/release.apk"
+        println("\n\n\n***************生成临时apk路径: " + finalApkPath + "***************\n\n\n")
+        //如果finalApkPath文件存在，则将其复制到rootProject.ext.configOutputPath
+        if (new File(finalApkPath).exists()) {
+            def savePaht = absolutePath(project, project.rootProject.ext.configOutputPath)
+            if (!new File(savePaht).exists()) {
+                new File(savePaht).mkdirs()
+            }
+            if (project.rootProject.ext.packageConfig.outputDiff) {
+                def targetPath = absolutePath(project, project.rootProject.ext.configOutputPath + "/" + project.rootProject.ext.configAppId + ".apk")
+                Files.copy(Paths.get(absolutePath(project, finalApkPath)), Paths.get(targetPath), StandardCopyOption.REPLACE_EXISTING)
+                //删除finalApkPath
+                new File(finalApkPath).delete()
+                println("\n\n\n***************复制到指定路径: " + targetPath + "***************\n\n\n")
+            } else {
+                def targetPath = absolutePath(project, project.rootProject.ext.configOutputPath + "/release.apk")
+                Files.copy(Paths.get(absolutePath(project, finalApkPath)), Paths.get(targetPath), StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+    }
+
+    static String base64Encode(String str) {
+        return new String(Base64.getEncoder().encode(str.getBytes()))
+    }
+
+    static String readLocalAppId(Project project) {
+        String path = absolutePath(project, "./apid.txt")
+        if (!new File(path).exists()) {
+            new File(path).createNewFile()
+        }
+        String localCfg = new File(path).text
+        printfOjb("readLocalAppId:" + localCfg)
+        return localCfg
+    }
+
+    static void writeLocalAppId(Project project, String appId) {
+        String path = absolutePath(project, "./apid.txt")
+        new File(path).text = appId
+    }
+
+
+    /**
+     * 生成的appId，根据index生成至少三个字母的appId
+     * @param appBasePackage
+     * @param index
+     * @return
+     */
+    static String genarateRandomAppId(String appBasePackage) {
+        def random = new Random()
+        def key = ""
+        def appId = appBasePackage
+        if (key.length() < 6) {
+            def randomStr = ""
+            for (int i = 0; i < 6 - key.length(); i++) {
+                randomStr += (char) (random.nextInt(26) + 97)
+            }
+            key += randomStr
+        }
+        return appId + key
+    }
+
+    static void replaceLocalProperties(String localPropertiesPath, String appVersion, String appBuild) {
+        def localProperties = new File(localPropertiesPath).text
+        localProperties = localProperties.replaceAll("flutter.versionCode=.*", "flutter.versionCode=" + appBuild)
+        localProperties = localProperties.replaceAll("flutter.versionName=.*", "flutter.versionName=" + appVersion)
+        new File(localPropertiesPath).text = localProperties
+        printfOjb("replace result:" + localProperties)
+    }
+
+
+    static void replaceAppName(String resDir, String appName) {
+        def stringsPath = resDir + (isMac() ? "/values/strings.xml" : "\\values\\strings.xml")
+        def strings = new File(stringsPath).text
+        strings = strings.replaceAll("<string name=\"app_name\">.*</string>", "<string name=\"app_name\">" + appName + "</string>")
+        //utf8写入
+        def str = new String(strings.getBytes("UTF-8"), "UTF-8")
+        //使用utf8写入str到stringsPath中，使用stream
+        Files.newOutputStream(Paths.get(stringsPath)).write(str.getBytes("UTF-8"))
+
+        printfOjb("replace result:" + str)
+    }
+
+    static void replaceAppLauncher(String resDir, String srcIcon) {
+        if (isMac()) {
+            def iconPaths = [resDir + "/mipmap-mdpi/ic_launcher.png",
+                             resDir + "/mipmap-ldpi/ic_launcher.png",
+                             resDir + "/mipmap-hdpi/ic_launcher.png",
+                             resDir + "/mipmap-xhdpi/ic_launcher.png",
+                             resDir + "/mipmap-xxhdpi/ic_launcher.png",
+                             resDir + "/mipmap-xxxhdpi/ic_launcher.png"]
+
+            iconPaths.each { iconPath ->
+                if (Paths.get(iconPath).toFile().exists()) {
+                    printfOjb("replace icon:" + Paths.get(iconPath) + " srcIcon" + Paths.get(srcIcon))
+                    Files.copy(Paths.get(srcIcon), Paths.get(iconPath), StandardCopyOption.REPLACE_EXISTING)
+                }
+            }
+        } else {//windows
+            def iconPaths = [resDir + "\\mipmap-mdpi\\ic_launcher.png",
+                             resDir + "\\mipmap-ldpi\\ic_launcher.png",
+                             resDir + "\\mipmap-hdpi\\ic_launcher.png",
+                             resDir + "\\mipmap-xhdpi\\ic_launcher.png",
+                             resDir + "\\mipmap-xxhdpi\\ic_launcher.png",
+                             resDir + "\\mipmap-xxxhdpi\\ic_launcher.png"]
+
+            iconPaths.each { iconPath ->
+                if (Paths.get(iconPath).toFile().exists()) {
+                    printfOjb("replace icon:" + iconPath + " srcIcon" + srcIcon)
+                    Files.copy(Paths.get(srcIcon), Paths.get(iconPath), StandardCopyOption.REPLACE_EXISTING)
+                }
+            }
+        }
+    }
+
+
+    static void writeAppConfig(Project project, String packageConfig, WebConfig config) {
+        def json = new JsonOutput().toJson(config)
+        new File(packageConfig).text = base64Encode(json)
+    }
+
+    static PackageConfig readPackageConfig(Project project, String packageConfig) {
+        //utf8读取
+        def str = new String(new File(packageConfig).text.getBytes("UTF-8"), "UTF-8")
+
+        def json = new JsonSlurper().parseText(str)
+        PackageConfig config = new PackageConfig()
+        config.appBasePackage = json.appBasePackage
+        config.appIcons = json.appIcons
+        config.appNames = json.appNames
+        config.appVersion = json.appVersion
+        config.appBuild = json.appBuild
+        config.randomName = json.randomName
+        config.outputPath = json.outputPath
+        config.outputDiff = json.outputDiff
+        config.opAppKey = json.opAppKey
+        if (json.webConfig) {
+            WebConfig webConfig = new WebConfig()
+            webConfig.lastDomain = json.webConfig.lastDomain
+            webConfig.userAgent = json.webConfig.userAgent
+            webConfig.adClickUrl = json.webConfig.adClickUrl
+            webConfig.adImageUrl = json.webConfig.adImageUrl
+            webConfig.adCountdown = json.webConfig.adCountdown
+            webConfig.abUrl = json.webConfig.abUrl
+            webConfig.domainList = json.webConfig.domainList
+            webConfig.dnsApis = json.webConfig.dnsApis
+            webConfig.configApis = json.webConfig.configApis
+            webConfig.whiteList = json.webConfig.whiteList
+            config.webConfig = webConfig
+        }
+
+        return config
+    }
+
+/**
+ * 生成jks文件
+ * @param project
+ * @param jksFile
+ * @param alias
+ * @param storepass
+ * @param key
+ * @return
+ */
+    static String createJksFile(Project project, String jksFile, String alias, String storepass, String keypass) {
+
+        // Delete the jksFile if it exists
+        if (new File(jksFile).exists()) {
+            new File(jksFile).delete()
+        }
+        String cmd = "keytool -genkey -v -keystore " + jksFile + " -keyalg RSA -keysize 2048 -validity 10000 -alias " + alias + " -storepass " + storepass + " -keypass " + keypass + " -dname \"CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown\""
+        def stdout = new ByteArrayOutputStream()
+        def stderr = new ByteArrayOutputStream()
+        if (isMac()) {
+            def result = project.exec {
+                commandLine 'sh', '-c', cmd
+                standardOutput = stdout
+                errorOutput = stderr
+                ignoreExitValue = true
+            }
+            println("Command failed with exit code: ${result.exitValue}")
+        } else {
+            def result = project.exec {
+                commandLine 'cmd', '/c', cmd
+                standardOutput = stdout
+                errorOutput = stderr
+                ignoreExitValue = true
+            }
+            println("Command failed with exit code: ${result.exitValue}")
+        }
+
+
+        println("Standard Output: ${stdout.toString()}")
+        println("Error Output: ${stderr.toString()}")
+        return jksFile
+    }
+
+    static void printfOjb(Object obj) {
+        def json = new JsonOutput().toJson(obj)
+        println("********************* " + json + " *********************")
+    }
+
+    static boolean isMac() {
+        return System.getProperty("os.name").toLowerCase().contains("mac");
+    }
+
+    static String absolutePath(Project project, String path) {
+        //mac window linux绝对地址
+        if (path.startsWith("/") || path.startsWith("\\") || path.startsWith("C:") || path.startsWith("D:") || path.startsWith("E:")) {
+            return path
+        }
+        //如果是mac
+        if (isMac()) {
+            return project.rootProject.projectDir.absolutePath + "/" + path
+        } else {
+            //path 转成window格式
+            path = path.replaceAll("/", "\\\\")
+            return project.rootProject.projectDir.absolutePath + "\\" + path
+        }
+    }
+}
+
+
+class PackageConfig {
+    List<String> appIcons = []
+    List<String> appNames = []
+    String appBasePackage = ""
+    boolean randomName = true
+    boolean outputDiff = true
+    String appVersion = "1.0.0"
+    String appBuild = "1"
+    String outputPath = ""
+    String opAppKey = ""
+    WebConfig webConfig
+}
+
+class WebConfig {
+    String lastDomain = "https://www.baidu.com"
+    String userAgent = "Mozilla/5.0 (Linux; Android 10; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.181 Mobile Safari/537.36"
+    String adImageUrl = ""
+    String adClickUrl = ""
+    int adCountdown = 10
+    String abUrl = ""
+    List<String> domainList = ["https://www.baidu.com"]
+    List<String> dnsApis = ["https://www.baidu.com"]
+    List<String> configApis = ["https://www.baidu.com"]
+    List<String> whiteList = ["https://www.baidu.com"]
+}
