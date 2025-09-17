@@ -1,9 +1,8 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-//    id "dev.flutter.flutter-gradle-plugin"
+    id "dev.flutter.flutter-gradle-plugin"
 }
-
 
 apply from: './auto_build.gradle'
 apply from: 'config_junk_code_guard.gradle'
@@ -79,11 +78,10 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
     implementation(project(':ui'))
+    implementation "androidx.annotation:annotation:1.7.1"
 }
-
 
 //单独执行的task，用于自动打包
 tasks.register('startAutoBuild') {
     rootProject.ext.autoBuild.startAssembleApk(project)
 }
-
