@@ -1,0 +1,89 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+//    id "dev.flutter.flutter-gradle-plugin"
+}
+
+
+apply from: './auto_build.gradle'
+apply from: 'config_junk_code_guard.gradle'
+rootProject.ext.autoBuild.preInitTask(project)
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+android {
+    namespace rootProject.ext.configAppId
+    compileSdk 34
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+
+        applicationId rootProject.ext.configAppId
+        minSdkVersion 21
+        targetSdkVersion 34
+        versionCode rootProject.ext.configAppBuild.toInteger()
+        versionName rootProject.ext.configAppVersion
+        manifestPlaceholders = [
+                OP_APP_KEY: "${rootProject.ext.opAppKey}"
+        ]
+        ndk {
+            abiFilters 'arm64-v8a' //'armeabi-v7a', 'arm64-v8a'
+        }
+    }
+
+    signingConfigs {
+
+        release {
+            keyAlias rootProject.ext.configAlias
+            keyPassword rootProject.ext.configKeypass
+            storeFile file(rootProject.ext.configKeyPath)
+            storePassword rootProject.ext.configStorepass
+        }
+    }
+
+    buildTypes {
+        release {
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig signingConfigs.release
+        }
+    }
+    applicationVariants.all { variant ->
+        if (variant.buildType.name == 'release') {
+            // Specify APK output path
+            variant.outputs.all { output ->
+                outputFileName = "release.apk" //
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation(project(':ui'))
+}
+
+
+//单独执行的task，用于自动打包
+tasks.register('startAutoBuild') {
+    rootProject.ext.autoBuild.startAssembleApk(project)
+}
+

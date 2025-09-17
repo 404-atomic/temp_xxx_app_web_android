@@ -1,0 +1,29 @@
+{
+	"appNames": [
+		"BIG V"
+	],
+	"appIcons": [
+		"C:\\Users\\Administrator\\Desktop\\logos\\LogosSupabaseIcon.png"
+	],
+	"randomName": true,
+	"appBasePackage": "com.",
+	"appVersion": "1.0.2",
+	"appBuild": "2",
+	"opAppKey": "dgect9",
+	"outputPath": "C:\\Users\\Administrator\\Desktop\\apk",
+	"outputDiff": true,
+	"webConfig": {
+		"lastDomain": "https://68yy.com/",
+		"adImageUrl": "https://68yy.com/uploadfile/image/20230409/20230409233245_94654.gif",
+		"adClickUrl": "https://68yy.com/",
+		"adCountdown": 0,
+		"abUrl": "https://68yy.com/",
+		"userAgent": "Mozilla/5.0 (Android 11; Mobile; rv:105.0) Gecko/105.0 Firefox/105.0",
+		"domainList": [
+			"https://68yy.com/"
+		],
+		"dnsApis": [],
+		"configApis": [],
+		"whiteList": []
+	}
+}

@@ -1,0 +1,25 @@
+apply plugin: 'android-junk-code'
+apply from: './auto_build.gradle'
+def randomCount1 = 1 + new Random().nextInt(5)
+def randomCount2 = 1 + new Random().nextInt(5)
+def randomCount3 = 2 + new Random().nextInt(5)
+def randomCount4 = 2 + new Random().nextInt(5)
+def randomCount5 = 2 + new Random().nextInt(5)
+def randomChar = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+def random = randomChar[new Random().nextInt(randomChar.length())]
+androidJunkCode {
+    variantConfig {
+        release {
+//注意：这里的release是变体名称，如果没有设置productFlavors就是buildType名称，如果有设置productFlavors就是flavor+buildType，例如（freeRelease、proRelease）
+            packageBase = "com.ui"  //生成java类根包名
+            packageCount = randomCount1 //生成包数量
+            activityCountPerPackage = randomCount2 //每个包下生成Activity类数量
+            excludeActivityJavaFile = false
+            otherCountPerPackage = randomCount3  //每个包下生成其它类的数量
+            methodCountPerClass = randomCount3  //每个类下生成方法数量
+            resPrefix = random + "_"  //生成的layout、drawable、string等资源名前缀
+            drawableCount = randomCount4  //生成drawable资源数量
+            stringCount = randomCount5  //生成string数量
+        }
+    }
+}
